@@ -9,8 +9,13 @@ function App() {
   const session = useSession();
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
-  const handleSwipe = async (imageId: string, direction: "left" | "right") => {
-    await session.swipe(imageId, direction);
+  const handleSwipe = async (
+    imageId: string,
+    direction: "left" | "right",
+    likedFeedback?: string,
+    dislikedFeedback?: string
+  ) => {
+    await session.swipe(imageId, direction, likedFeedback, dislikedFeedback);
 
     // Move to next image or trigger summary
     if (session.currentRound && currentImageIndex < session.currentRound.images.length - 1) {

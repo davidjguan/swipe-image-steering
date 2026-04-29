@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import type { ImageRecord } from "../api/client";
+import { imageDataUrl, type ImageRecord } from "../api/client";
 
 interface SwipeCardProps {
   round: {
@@ -23,6 +23,11 @@ export function SwipeCard({ round, onSwipe, currentImageIndex }: SwipeCardProps)
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Arrow keys move the cursor while typing feedback; don't treat them as swipes.
+      const target = e.target as HTMLElement | null;
+      if (target && (target.tagName === "TEXTAREA" || target.tagName === "INPUT" || target.isContentEditable)) {
+        return;
+      }
       if (e.key === "ArrowLeft") {
         onSwipe(currentImage.id, "left", likedFeedback || undefined, dislikedFeedback || undefined);
       } else if (e.key === "ArrowRight") {
@@ -45,7 +50,7 @@ export function SwipeCard({ round, onSwipe, currentImageIndex }: SwipeCardProps)
 
       <div style={styles.imageWrapper}>
         <img
-          src={`data:image/png;base64,${currentImage.base64_data}`}
+          src={imageDataUrl(currentImage.base64_data)}
           alt="Generated"
           style={styles.image}
         />

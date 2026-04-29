@@ -1,5 +1,11 @@
 const API_BASE_URL = "http://localhost:8000";
 
+/** Build a data: URL with the right MIME type (images may be PNG or JPEG). */
+export function imageDataUrl(base64: string): string {
+  const mime = base64.startsWith("/9j/") ? "image/jpeg" : "image/png";
+  return `data:${mime};base64,${base64}`;
+}
+
 export interface ImageRecord {
   id: string;
   base64_data: string;

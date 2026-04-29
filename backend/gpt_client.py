@@ -5,6 +5,12 @@ from models import Session, ImageRecord
 import base64
 
 
+def _image_data_url(b64: str) -> str:
+    """Build a data: URL with the right MIME type (images may be PNG or JPEG)."""
+    mime = "image/jpeg" if b64.startswith("/9j/") else "image/png"
+    return f"data:{mime};base64,{b64}"
+
+
 def summarize_preferences(session: Session, openai_api_key: str) -> Dict:
     """
     Use GPT-4o to analyze liked vs disliked images and extract preference patterns.
@@ -79,7 +85,7 @@ When analyzing, consider both the visual patterns you see in the images AND any 
         for img in liked_images[:2]:  # Limit to 2 liked images to save tokens
             message_content.append({
                 "type": "image_url",
-                "image_url": {"url": f"data:image/png;base64,{img.base64_data}"}
+                "image_url": {"url": _image_data_url(img.base64_data)}
             })
         if len(liked_images) > 2:
             message_content.append({
@@ -96,7 +102,7 @@ When analyzing, consider both the visual patterns you see in the images AND any 
         for img in disliked_images[:2]:  # Limit to 2 disliked images to save tokens
             message_content.append({
                 "type": "image_url",
-                "image_url": {"url": f"data:image/png;base64,{img.base64_data}"}
+                "image_url": {"url": _image_data_url(img.base64_data)}
             })
         if len(disliked_images) > 2:
             message_content.append({

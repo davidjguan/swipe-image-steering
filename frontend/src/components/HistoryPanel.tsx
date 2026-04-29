@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { Round } from "../api/client";
+import { imageDataUrl, type Round } from "../api/client";
 
 interface HistoryPanelProps {
   rounds: Round[];
@@ -55,7 +55,7 @@ export function HistoryPanel({ rounds }: HistoryPanelProps) {
                           }}
                         >
                           <img
-                            src={`data:image/png;base64,${img.base64_data}`}
+                            src={imageDataUrl(img.base64_data)}
                             alt="thumbnail"
                             style={styles.thumbnailImage}
                           />
