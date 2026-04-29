@@ -5,8 +5,8 @@ load_dotenv()
 
 import google.genai as genai
 
-api_key = os.getenv("GEMINI_API_KEY")
-print(f"API Key loaded: {api_key[:20]}...")
+api_key = os.getenv("GOOGLE_API_KEY")
+print(f"API key loaded: {bool(api_key)}")
 
 try:
     client = genai.Client(api_key=api_key)

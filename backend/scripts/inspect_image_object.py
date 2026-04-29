@@ -5,7 +5,7 @@ import base64
 load_dotenv()
 import google.genai as genai
 
-api_key = os.getenv('GEMINI_API_KEY')
+api_key = os.getenv('GOOGLE_API_KEY')
 client = genai.Client(api_key=api_key)
 print("Generating image...")
 response = client.models.generate_images(
