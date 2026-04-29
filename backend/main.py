@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from typing import Literal
+from typing import Literal, Optional
 import uuid
 
 from models import Session, Round, ImageRecord
@@ -16,11 +16,11 @@ from prompt_engine import build_image_prompt
 # Load environment variables
 load_dotenv()
 
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
-if not GEMINI_API_KEY or not OPENAI_API_KEY:
-    raise ValueError("Missing required environment variables: GEMINI_API_KEY and OPENAI_API_KEY")
+if not GOOGLE_API_KEY or not OPENAI_API_KEY:
+    raise ValueError("Missing required environment variables: GOOGLE_API_KEY and OPENAI_API_KEY")
 
 # Initialize FastAPI app
 app = FastAPI(title="Swipe Image Steering")
@@ -38,6 +38,10 @@ app.add_middleware(
 # Request/Response models
 class StartSessionRequest(BaseModel):
     brief: str
+    aspect_ratio: Optional[str] = "1:1"
+    output_mime_type: Optional[str] = "image/jpeg"
+    output_compression_quality: Optional[int] = 95
+    seed: Optional[int] = None
 
 
 class StartSessionResponse(BaseModel):
@@ -49,6 +53,8 @@ class SwipeRequest(BaseModel):
     session_id: str
     image_id: str
     direction: Literal["left", "right"]
+    liked_feedback: Optional[str] = None
+    disliked_feedback: Optional[str] = None
 
 
 class SwipeResponse(BaseModel):
@@ -81,7 +87,13 @@ async def start_session(req: StartSessionRequest):
         print(f"[START_SESSION] Received brief: {req.brief[:50]}...")
         
         # Create session
-        session = session_store.create_session(req.brief)
+        session = session_store.create_session(
+            req.brief,
+            req.aspect_ratio,
+            req.output_mime_type,
+            req.output_compression_quality,
+            req.seed
+        )
         print(f"[START_SESSION] Created session: {session.id}")
         
         # Build initial prompt
@@ -90,7 +102,14 @@ async def start_session(req: StartSessionRequest):
         
         # Generate 4 images in parallel
         print("[START_SESSION] Calling generate_images...")
-        base64_images = await generate_images(prompt, count=4)
+        base64_images = await generate_images(
+            prompt,
+            count=4,
+            aspect_ratio=req.aspect_ratio,
+            output_mime_type=req.output_mime_type,
+            output_compression_quality=req.output_compression_quality,
+            seed=req.seed
+        )
         print(f"[START_SESSION] Generated {len(base64_images)} images")
         
         if not base64_images or len(base64_images) < 4:
@@ -148,6 +167,8 @@ async def record_swipe(req: SwipeRequest):
         for img in current_round.images:
             if img.id == req.image_id:
                 img.direction = req.direction
+                img.liked_feedback = req.liked_feedback
+                img.disliked_feedback = req.disliked_feedback
                 image_found = True
                 break
         
@@ -211,7 +232,14 @@ async def next_round(req: NextRoundRequest):
         
         # Generate next batch of images
         print(f"[NEXT_ROUND] Generating next batch...")
-        base64_images = await generate_images(next_prompt, count=4)
+        base64_images = await generate_images(
+            next_prompt,
+            count=4,
+            aspect_ratio=session.aspect_ratio,
+            output_mime_type=session.output_mime_type,
+            output_compression_quality=session.output_compression_quality,
+            seed=session.seed
+        )
         
         if not base64_images or len(base64_images) < 4:
             raise HTTPException(status_code=500, detail="Could not generate all 4 images")

@@ -3,6 +3,6 @@ uvicorn
 pydantic
 python-dotenv
 openai
-google-generativeai
+google-genai==1.70.0
 httpx
 Pillow

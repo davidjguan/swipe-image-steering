@@ -5,6 +5,8 @@ export interface ImageRecord {
   base64_data: string;
   prompt_used: string;
   direction?: "left" | "right";
+  liked_feedback?: string;
+  disliked_feedback?: string;
 }
 
 export interface Round {
@@ -19,8 +21,20 @@ export interface Round {
 export interface Session {
   id: string;
   brief: string;
+  aspect_ratio?: string;
+  output_mime_type?: string;
+  output_compression_quality?: number;
+  seed?: number;
   rounds: Round[];
   preference_profile: Record<string, any>;
+}
+
+export interface StartSessionRequest {
+  brief: string;
+  aspect_ratio?: string;
+  output_mime_type?: string;
+  output_compression_quality?: number;
+  seed?: number;
 }
 
 export interface StartSessionResponse {
@@ -49,11 +63,11 @@ export interface HistoryResponse {
   rounds: Round[];
 }
 
-export async function startSession(brief: string): Promise<StartSessionResponse> {
+export async function startSession(request: StartSessionRequest): Promise<StartSessionResponse> {
   const response = await fetch(`${API_BASE_URL}/session/start`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ brief }),
+    body: JSON.stringify(request),
   });
   if (!response.ok) {
     throw new Error(`Failed to start session: ${response.statusText}`);
@@ -64,12 +78,20 @@ export async function startSession(brief: string): Promise<StartSessionResponse>
 export async function recordSwipe(
   sessionId: string,
   imageId: string,
-  direction: "left" | "right"
+  direction: "left" | "right",
+  likedFeedback?: string,
+  dislikedFeedback?: string
 ): Promise<SwipeResponse> {
   const response = await fetch(`${API_BASE_URL}/session/swipe`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ session_id: sessionId, image_id: imageId, direction }),
+    body: JSON.stringify({ 
+      session_id: sessionId, 
+      image_id: imageId, 
+      direction,
+      liked_feedback: likedFeedback,
+      disliked_feedback: dislikedFeedback
+    }),
   });
   if (!response.ok) {
     throw new Error(`Failed to record swipe: ${response.statusText}`);

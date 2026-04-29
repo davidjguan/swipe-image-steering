@@ -1,16 +1,27 @@
 import { useState } from "react";
 
 interface BriefInputProps {
-  onSubmit: (brief: string) => void;
+  onSubmit: (request: { brief: string; aspect_ratio?: string; output_mime_type?: string; output_compression_quality?: number; seed?: number }) => void;
   isLoading: boolean;
 }
 
 export function BriefInput({ onSubmit, isLoading }: BriefInputProps) {
   const [brief, setBrief] = useState("");
+  const [aspectRatio, setAspectRatio] = useState("1:1");
+  const [outputMimeType, setOutputMimeType] = useState("image/jpeg");
+  const [compressionQuality, setCompressionQuality] = useState(95);
+  const [seed, setSeed] = useState("");
 
   const handleSubmit = () => {
     if (brief.trim()) {
-      onSubmit(brief);
+      const request = {
+        brief,
+        aspect_ratio: aspectRatio,
+        output_mime_type: outputMimeType,
+        output_compression_quality: outputMimeType === "image/jpeg" ? compressionQuality : undefined,
+        seed: seed ? parseInt(seed) : undefined
+      };
+      onSubmit(request);
     }
   };
 
@@ -36,6 +47,65 @@ export function BriefInput({ onSubmit, isLoading }: BriefInputProps) {
           style={styles.textarea}
           disabled={isLoading}
         />
+
+        <div style={styles.optionsContainer}>
+          <div style={styles.optionRow}>
+            <label style={styles.label}>Aspect Ratio:</label>
+            <select
+              value={aspectRatio}
+              onChange={(e) => setAspectRatio(e.target.value)}
+              style={styles.select}
+              disabled={isLoading}
+            >
+              <option value="1:1">Square (1:1)</option>
+              <option value="4:3">Landscape (4:3)</option>
+              <option value="16:9">Wide (16:9)</option>
+              <option value="3:4">Portrait (3:4)</option>
+              <option value="9:16">Tall (9:16)</option>
+            </select>
+          </div>
+
+          <div style={styles.optionRow}>
+            <label style={styles.label}>Output Format:</label>
+            <select
+              value={outputMimeType}
+              onChange={(e) => setOutputMimeType(e.target.value)}
+              style={styles.select}
+              disabled={isLoading}
+            >
+              <option value="image/png">PNG (Lossless)</option>
+              <option value="image/jpeg">JPEG (Compressed)</option>
+            </select>
+          </div>
+
+          {outputMimeType === "image/jpeg" && (
+            <div style={styles.optionRow}>
+              <label style={styles.label}>JPEG Quality:</label>
+              <input
+                type="range"
+                min="0"
+                max="100"
+                value={compressionQuality}
+                onChange={(e) => setCompressionQuality(parseInt(e.target.value))}
+                style={styles.slider}
+                disabled={isLoading}
+              />
+              <span style={styles.qualityValue}>{compressionQuality}</span>
+            </div>
+          )}
+
+          <div style={styles.optionRow}>
+            <label style={styles.label}>Seed (optional):</label>
+            <input
+              type="number"
+              value={seed}
+              onChange={(e) => setSeed(e.target.value)}
+              placeholder="Random if empty"
+              style={styles.input}
+              disabled={isLoading}
+            />
+          </div>
+        </div>
 
         <button
           onClick={handleSubmit}
@@ -119,4 +189,45 @@ const styles = {
     marginTop: "12px",
     textAlign: "center" as const,
   },
+  optionsContainer: {
+    marginBottom: "20px",
+  } as React.CSSProperties,
+  optionRow: {
+    display: "flex",
+    alignItems: "center",
+    marginBottom: "12px",
+  } as React.CSSProperties,
+  label: {
+    fontSize: "14px",
+    color: "#ffffff",
+    marginRight: "12px",
+    minWidth: "120px",
+  } as React.CSSProperties,
+  select: {
+    padding: "8px",
+    fontSize: "14px",
+    border: "1px solid #333333",
+    borderRadius: "4px",
+    backgroundColor: "#1a1a1a",
+    color: "#ffffff",
+    flex: 1,
+  } as React.CSSProperties,
+  input: {
+    padding: "8px",
+    fontSize: "14px",
+    border: "1px solid #333333",
+    borderRadius: "4px",
+    backgroundColor: "#1a1a1a",
+    color: "#ffffff",
+    flex: 1,
+  } as React.CSSProperties,
+  slider: {
+    flex: 1,
+    marginRight: "8px",
+  } as React.CSSProperties,
+  qualityValue: {
+    fontSize: "14px",
+    color: "#ffffff",
+    minWidth: "30px",
+  } as React.CSSProperties,
 };

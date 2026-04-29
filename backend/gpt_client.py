@@ -45,6 +45,18 @@ def summarize_preferences(session: Session, openai_api_key: str) -> Dict:
     # Build message content with images
     message_content = []
     
+    # Collect user feedback text
+    feedback_text = ""
+    for img in current_round.images:
+        if img.direction == "right" and (img.liked_feedback or img.disliked_feedback):
+            feedback_text += f"\nLiked Image Feedback: {img.liked_feedback or 'No specific feedback'}"
+            if img.disliked_feedback:
+                feedback_text += f" (Also noted: {img.disliked_feedback})"
+        elif img.direction == "left" and (img.liked_feedback or img.disliked_feedback):
+            feedback_text += f"\nDisliked Image Feedback: {img.disliked_feedback or 'No specific feedback'}"
+            if img.liked_feedback:
+                feedback_text += f" (Also noted: {img.liked_feedback})"
+    
     # Add text context
     brief_text = f"""Original Brief: {session.brief}
 
@@ -52,8 +64,10 @@ Current Preference Profile: {json.dumps(session.preference_profile, indent=2)}
 
 I'm analyzing your swiping patterns to understand your visual preferences. Below are the images you liked (swiped right) and disliked (swiped left) from Round {current_round.round_number}.
 
+{f'USER FEEDBACK:{feedback_text}' if feedback_text else ''}
+
 Focus on VISUAL ATTRIBUTES: color palette, lighting, composition, texture, mood, subject matter, style, etc.
-"""
+When analyzing, consider both the visual patterns you see in the images AND any specific feedback the user provided about what they liked or disliked."""
     message_content.append({"type": "text", "text": brief_text})
     
     # Add liked images with label
@@ -100,6 +114,8 @@ Focus on VISUAL ATTRIBUTES: color palette, lighting, composition, texture, mood,
 The user is swiping right (like) or left (dislike) on generated images to guide the system toward their ideal result.
 
 Analyze the pattern of liked vs disliked images directly from what you see in them. Identify which visual attributes — such as color palette, lighting, composition, texture, mood, and subject style — are driving the user's preferences.
+
+PAY SPECIAL ATTENTION to any user feedback text provided - this contains explicit statements about what they liked or disliked about specific images. Use this feedback to understand their preferences more precisely.
 
 Handle contradictions carefully. If the user liked a warm image in one round but disliked one in another, look for the more specific attribute that actually differs.
 

@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import type { ImageRecord } from "../api/client";
 
 interface SwipeCardProps {
@@ -6,25 +6,33 @@ interface SwipeCardProps {
     round_number: number;
     images: ImageRecord[];
   };
-  onSwipe: (imageId: string, direction: "left" | "right") => void;
+  onSwipe: (imageId: string, direction: "left" | "right", likedFeedback?: string, dislikedFeedback?: string) => void;
   currentImageIndex: number;
 }
 
 export function SwipeCard({ round, onSwipe, currentImageIndex }: SwipeCardProps) {
   const currentImage = round.images[currentImageIndex];
+  const [likedFeedback, setLikedFeedback] = useState(currentImage.liked_feedback || "");
+  const [dislikedFeedback, setDislikedFeedback] = useState(currentImage.disliked_feedback || "");
+
+  useEffect(() => {
+    // Reset feedback when image changes
+    setLikedFeedback(currentImage.liked_feedback || "");
+    setDislikedFeedback(currentImage.disliked_feedback || "");
+  }, [currentImage.id, currentImage.liked_feedback, currentImage.disliked_feedback]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "ArrowLeft") {
-        onSwipe(currentImage.id, "left");
+        onSwipe(currentImage.id, "left", likedFeedback || undefined, dislikedFeedback || undefined);
       } else if (e.key === "ArrowRight") {
-        onSwipe(currentImage.id, "right");
+        onSwipe(currentImage.id, "right", likedFeedback || undefined, dislikedFeedback || undefined);
       }
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [currentImage.id, onSwipe]);
+  }, [currentImage.id, onSwipe, likedFeedback, dislikedFeedback]);
 
   return (
     <div style={styles.container}>
@@ -45,17 +53,42 @@ export function SwipeCard({ round, onSwipe, currentImageIndex }: SwipeCardProps)
 
       <div style={styles.controls}>
         <button
-          onClick={() => onSwipe(currentImage.id, "left")}
+          onClick={() => onSwipe(currentImage.id, "left", likedFeedback || undefined, dislikedFeedback || undefined)}
           style={{ ...styles.button, ...styles.dislikeButton }}
         >
           ← Dislike
         </button>
         <button
-          onClick={() => onSwipe(currentImage.id, "right")}
+          onClick={() => onSwipe(currentImage.id, "right", likedFeedback || undefined, dislikedFeedback || undefined)}
           style={{ ...styles.button, ...styles.likeButton }}
         >
           Like →
         </button>
+      </div>
+
+      <div style={styles.feedbackSection}>
+        <div style={styles.feedbackInputs}>
+          <div style={styles.feedbackGroup}>
+            <label style={styles.feedbackLabel}>What didn't you like? (optional)</label>
+            <textarea
+              value={dislikedFeedback}
+              onChange={(e) => setDislikedFeedback(e.target.value)}
+              placeholder="e.g., Too dark, wrong style..."
+              style={styles.feedbackTextarea}
+              rows={2}
+            />
+          </div>
+          <div style={styles.feedbackGroup}>
+            <label style={styles.feedbackLabel}>What did you like? (optional)</label>
+            <textarea
+              value={likedFeedback}
+              onChange={(e) => setLikedFeedback(e.target.value)}
+              placeholder="e.g., Great colors, nice composition..."
+              style={styles.feedbackTextarea}
+              rows={2}
+            />
+          </div>
+        </div>
       </div>
 
       <p style={styles.hint}>Use arrow keys or buttons to swipe</p>
@@ -128,5 +161,36 @@ const styles = {
     marginTop: "16px",
     fontSize: "12px",
     color: "#666666",
+  } as React.CSSProperties,
+  feedbackSection: {
+    width: "100%",
+    maxWidth: "700px",
+    marginBottom: "20px",
+  } as React.CSSProperties,
+  feedbackInputs: {
+    display: "flex",
+    gap: "16px",
+    marginBottom: "20px",
+  } as React.CSSProperties,
+  feedbackGroup: {
+    flex: 1,
+  } as React.CSSProperties,
+  feedbackLabel: {
+    display: "block",
+    fontSize: "14px",
+    fontWeight: "bold",
+    color: "#cccccc",
+    marginBottom: "8px",
+  } as React.CSSProperties,
+  feedbackTextarea: {
+    width: "100%",
+    padding: "8px",
+    border: "1px solid #444444",
+    borderRadius: "4px",
+    backgroundColor: "#2a2a2a",
+    color: "#ffffff",
+    fontSize: "14px",
+    resize: "vertical",
+    minHeight: "60px",
   } as React.CSSProperties,
 };

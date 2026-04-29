@@ -19,11 +19,11 @@ export function useSession() {
   const [preferenceProfile, setPreferenceProfile] = useState<Record<string, any>>({});
   const [summaryCard, setSummaryCard] = useState<SummaryCard | null>(null);
 
-  const startSession = useCallback(async (brief: string) => {
+  const startSession = useCallback(async (request: api.StartSessionRequest) => {
     try {
       setIsLoading(true);
       setError(null);
-      const response = await api.startSession(brief);
+      const response = await api.startSession(request);
       setSessionId(response.session_id);
       setCurrentRound(response.round);
       setAllRounds([response.round]);
@@ -38,17 +38,17 @@ export function useSession() {
   }, []);
 
   const swipe = useCallback(
-    async (imageId: string, direction: "left" | "right") => {
+    async (imageId: string, direction: "left" | "right", likedFeedback?: string, dislikedFeedback?: string) => {
       if (!sessionId || !currentRound) return;
       try {
         setError(null);
-        await api.recordSwipe(sessionId, imageId, direction);
+        await api.recordSwipe(sessionId, imageId, direction, likedFeedback, dislikedFeedback);
 
         // Update current round locally
         const updatedRound = {
           ...currentRound,
           images: currentRound.images.map((img) =>
-            img.id === imageId ? { ...img, direction } : img
+            img.id === imageId ? { ...img, direction, liked_feedback: likedFeedback, disliked_feedback: dislikedFeedback } : img
           ),
         };
         setCurrentRound(updatedRound);

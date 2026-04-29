@@ -1,73 +1,71 @@
-import google.genai as genai
+from google import genai
 import base64
 import asyncio
-from typing import List
+from typing import List, Optional
 import io
 import os
 
-# Model to use (Imagen 4.0 is available)
-MODEL_NAME = "models/imagen-4.0-generate-001"
+client = None
+
+def _get_client():
+    global client
+    if client is None:
+        API_KEY = os.environ.get("GOOGLE_API_KEY")
+        if API_KEY:
+            client = genai.Client(api_key=API_KEY)
+        else:
+            raise ValueError("GOOGLE_API_KEY environment variable is required")
+    return client
 
 
-async def generate_images(prompt: str, count: int = 4) -> List[str]:
-    """
-    Generate images using Google Gemini API (Imagen 4.0).
-    Returns a list of base64-encoded PNG strings.
-    """
-    
-    def generate_batch_sync():
-        try:
-            # Create client with API key
-            api_key = os.getenv("GEMINI_API_KEY")
-            if not api_key:
-                raise ValueError("GEMINI_API_KEY not set")
-                
-            client = genai.Client(api_key=api_key)
-            
-            print(f"[IMAGEN] Generating {count} images with prompt: {prompt[:50]}...")
-            
-            # Generate images using Imagen 4.0
-            response = client.models.generate_images(
-                model=MODEL_NAME,
-                prompt=prompt,
-                config={
-                    "number_of_images": count,
-                }
-            )
-            
-            base64_images = []
-            if hasattr(response, 'generated_images') and response.generated_images:
-                print(f"[IMAGEN] Got {len(response.generated_images)} images")
-                for idx, generated_img in enumerate(response.generated_images):
-                    # The generated image has .image property which is a google.genai.types.Image
-                    image_bytes = None
-                    
-                    if hasattr(generated_img, 'image') and hasattr(generated_img.image, 'image_bytes'):
-                        image_bytes = generated_img.image.image_bytes
-                        
-                        if image_bytes:
-                            # Ensure it's bytes
-                            if isinstance(image_bytes, str):
-                                image_bytes = image_bytes.encode('latin1')
-                            base64_str = base64.b64encode(image_bytes).decode("utf-8")
-                            base64_images.append(base64_str)
-                            print(f"[IMAGEN] Encoded image {len(base64_images)} ({len(image_bytes)} bytes)")
-                        else:
-                            print(f"[IMAGEN] Image[{idx}].image.image_bytes is None")
-                    else:
-                        print(f"[IMAGEN] Image[{idx}] does not have .image.image_bytes property")
-            
-            print(f"[IMAGEN] Successfully encoded {len(base64_images)} images to base64")
-            return base64_images
-            
-        except Exception as e:
-            print(f"[IMAGEN] Error generating images: {type(e).__name__}: {e}")
-            import traceback
-            traceback.print_exc()
-            return []
-    
-    # Generate images in thread pool to avoid blocking
-    loop = asyncio.get_event_loop()
-    results = await loop.run_in_executor(None, generate_batch_sync)
-    
-    return results
+def _extract_bytes(image_item) -> bytes:
+    if hasattr(image_item, "image"):
+        img = image_item.image
+        if hasattr(img, "image_bytes"):
+            return img.image_bytes
+        if hasattr(img, "bytes"):
+            return img.bytes
+        if hasattr(img, "data") and isinstance(img.data, (bytes, bytearray)):
+            return bytes(img.data)
+        if hasattr(img, "data") and isinstance(img.data, str):
+            return base64.b64decode(img.data)
+    if hasattr(image_item, "bytes"):
+        return image_item.bytes
+    if hasattr(image_item, "data") and isinstance(image_item.data, (bytes, bytearray)):
+        return bytes(image_item.data)
+    if hasattr(image_item, "b64_json"):
+        return base64.b64decode(image_item.b64_json)
+    raise ValueError("Unable to extract image bytes from generated image response")
+
+
+async def generate_images(prompt: str, count: int = 4, aspect_ratio: str = "1:1", output_mime_type: str = "image/jpeg", output_compression_quality: int = 95, seed: Optional[int] = None) -> List[str]:
+    loop = asyncio.get_running_loop()
+
+    def sync_generate() -> list:
+        client = _get_client()
+        config = {"number_of_images": count, "aspect_ratio": aspect_ratio, "output_mime_type": output_mime_type}
+        if output_mime_type == "image/jpeg":
+            config["output_compression_quality"] = output_compression_quality
+        if seed is not None:
+            config["seed"] = seed
+        response = client.models.generate_images(
+            model="models/imagen-4.0-generate-001",
+            prompt=prompt,
+            config=config
+        )
+        if not hasattr(response, "generated_images"):
+            raise RuntimeError("Invalid image generation response from Google Gemini Imagen")
+        return list(response.generated_images)
+
+    image_items = await loop.run_in_executor(None, sync_generate)
+    base64_images: List[str] = []
+
+    for image_item in image_items[:count]:
+        raw_bytes = _extract_bytes(image_item)
+        encoded = base64.b64encode(raw_bytes).decode("utf-8")
+        base64_images.append(encoded)
+
+    if len(base64_images) != count:
+        raise RuntimeError("Google Imagen did not return the expected number of images")
+
+    return base64_images
